@@ -23,15 +23,17 @@ export const baseConfig: BaseConfig = {
 export const config: Config = Object.assign({
   timeout: 200,
   preLoad: 0.3,
-  component: false
+  component: false,
+  sorted: true,
+  debounce: false,
+  afterListen: undefined
 }, baseConfig)
 export const directiveConfig: DirectiveConfig = Object.assign({
   src: '',
-  lazyKey: defaultKey,
-  loaded: false
+  lazyKey: defaultKey
 }, baseConfig)
-export const listener = throttle((targetVmSet, targetElSet, top, right, bottom, left, y, x): void => {
-  lazyHandler(targetVmSet, targetElSet, top !== undefined ? (el) => inParentView(el, top, right as number, bottom as number, left as number, y as number, x as number) : inViewPort)
+export const listener = throttle((sorted, targetVmSet, targetElSet, top, right, bottom, left, y, x): void => {
+  lazyHandler(sorted, targetVmSet, targetElSet, top !== undefined ? (el) => inParentView(el, top, right as number, bottom as number, left as number, y as number, x as number) : inViewPort)
 })
 
 window.addEventListener('scroll', listener)
@@ -46,8 +48,9 @@ function inParentView(el: HTMLElement, pTop: number, pRight: number, pBottom: nu
   return top <= pBottom + y && bottom >= pTop - y && left <= pRight + x && right >= pLeft - x
 }
 
-function lazyHandler(targetVmSet: Set<ComponentPublicInstance>, targetElSet: Set<ExtHTMLElement>, checkFn: (el: HTMLElement) => boolean): void {
+function lazyHandler(sorted: boolean, targetVmSet: Set<ComponentPublicInstance>, targetElSet: Set<ExtHTMLElement>, checkFn: (el: HTMLElement) => boolean): void {
   // components
+  let flag = false
   for (const vm of targetVmSet) {
     if (vm.$el.compareDocumentPosition(document) & Node.DOCUMENT_POSITION_DISCONNECTED) { // unmount
       targetVmSet.delete(vm)
@@ -56,13 +59,15 @@ function lazyHandler(targetVmSet: Set<ComponentPublicInstance>, targetElSet: Set
       continue
     }
     if (checkFn(vm.$el)) {
+      flag = true;
       (vm as ExtComponentPublicInstance).isLoaded = true
       targetVmSet.delete(vm)
       data.componentTotal--
       data.componentCount--
-    }
+    } else if (sorted && flag) break
   }
   // directives
+  flag = false
   for (const el of targetElSet) {
     if (el.compareDocumentPosition(document) & Node.DOCUMENT_POSITION_DISCONNECTED) {
       targetElSet.delete(el)
@@ -70,7 +75,10 @@ function lazyHandler(targetVmSet: Set<ComponentPublicInstance>, targetElSet: Set
       data.directiveCount--
       continue
     }
-    if (checkFn(el)) updateDirectiveEl(el, targetElSet)
+    if (checkFn(el)) {
+      flag = true
+      updateDirectiveEl(el, targetElSet)
+    } else if (sorted && flag) break
   }
 }
 
@@ -139,29 +147,38 @@ export function addDirectiveRecords(el: ExtHTMLElement, key: string): void {
   if (++data.directiveCount === data.directiveTotal && data.componentCount === data.componentTotal) listener()
 }
 
-function throttle(cb: (targetVmSet: Set<ComponentPublicInstance>, targetElSet: Set<ExtHTMLElement>, top?: number, right?: number, bottom?: number, left?: number, y?: number, x?: number) => void) {
+function throttle(cb: (sorted: boolean, targetVmSet: Set<ComponentPublicInstance>, targetElSet: Set<ExtHTMLElement>, top?: number, right?: number, bottom?: number, left?: number, y?: number, x?: number) => void) {
   let flag = false, lastScrollLeft = 0, lastScrollTop = 0, timer: number
-  const handler = (event?: Event) => {
+  const handler = (sorted: boolean, event?: Event) => {
     if (event && ![window, document].includes(event.target as Document)) {
       const targetVmSet: Set<ComponentPublicInstance> = findVmSet(event.target as HTMLElement)
       const targetElSet: Set<ExtHTMLElement> = findElSet(event.target as HTMLElement)
       const {left, right, top, bottom} = ((event.target as HTMLElement).getBoundingClientRect())
       const {scrollLeft, scrollTop} = (event.target as HTMLElement)
-      cb(targetVmSet, targetElSet, top, right, bottom, left, Math.abs(scrollTop - lastScrollTop) * config.preLoad, Math.abs(scrollLeft - lastScrollLeft) * config.preLoad) // 大于0向上滚动
+      cb(sorted, targetVmSet, targetElSet, top, right, bottom, left, Math.abs(scrollTop - lastScrollTop) * config.preLoad, Math.abs(scrollLeft - lastScrollLeft) * config.preLoad) // 大于0向上滚动
       lastScrollLeft = scrollLeft
       lastScrollTop = scrollTop
     } else {
-      for (const [, vmSet] of lazyVmMap) cb(vmSet, new Set())
-      for (const [, elSet] of lazyElMap) cb(new Set(), elSet)
+      for (const [, vmSet] of lazyVmMap) cb(sorted, vmSet, new Set())
+      for (const [, elSet] of lazyElMap) cb(sorted, new Set(), elSet)
     }
     flag = false
+    config.afterListen && event && config.afterListen(event)
   }
-  return (event?: Event) => {
-    clearTimeout(timer)
-    timer = setTimeout(() => handler(event), config.timeout + 50) // debounce
+  return (event?: Event | boolean, sorted?: boolean) => {
+    if (event === undefined || event instanceof Object) { // default config
+      sorted = config.sorted
+    } else if (typeof event === 'boolean') { // manual call
+      sorted = event
+      event = undefined
+    }
+    if (config.debounce) {
+      clearTimeout(timer)
+      timer = setTimeout(() => handler(sorted as boolean, event as Event), config.timeout + 50) // debounce
+    }
     if (flag) return
     flag = true
-    setTimeout(() => handler(event), config.timeout) // throttle
+    setTimeout(() => handler(sorted as boolean, event as Event), config.timeout) // throttle
   }
 }
 

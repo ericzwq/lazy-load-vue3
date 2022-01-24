@@ -1,6 +1,6 @@
 {
   "name": "lazy-load-vue3",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "A lazy loading plugin based on vue3",
   "private": false,
   "main": "lib/lazy-load-vue3.umd.js",
@@ -67,6 +67,10 @@
     "rollup-plugin-typescript2": "^0.29.0",
     "typescript": "~4.1.5",
     "vue": "^3.2.27"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ericzwq/lazy-load-vue3"
   },
   "unpkg": "lib/lazy-load-vue3.min.js"
 }

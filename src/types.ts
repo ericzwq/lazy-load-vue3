@@ -18,6 +18,9 @@ export interface Config extends BaseConfig {
   timeout: number
   preLoad: number
   component: boolean
+  sorted: boolean
+  debounce: boolean
+  afterListen?: (event: Event) => void
 }
 
 export type LazyOptions = Partial<Config>

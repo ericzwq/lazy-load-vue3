@@ -12,7 +12,7 @@ export declare const data: {
 export declare const baseConfig: BaseConfig;
 export declare const config: Config;
 export declare const directiveConfig: DirectiveConfig;
-export declare const listener: (event?: Event | undefined) => void;
+export declare const listener: (event?: boolean | Event | undefined, sorted?: boolean | undefined) => void;
 export declare function inViewPort(el: HTMLElement): boolean;
 export declare function updateDirectiveEl(el: ExtHTMLElement, targetElSet?: Set<ExtHTMLElement>): void;
 export declare function addComponentRecords(vm: ComponentPublicInstance): void;

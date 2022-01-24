@@ -11,6 +11,16 @@
       <!--    <img style="width: 100px;height: 100px" v-show="show" v-lazy="'https://upfile2.asqql.com/upfile/hdimg/wmtp/wmtp/2015-12/30/9835VicmIhquvD.jpg'"/>-->
       <el-table :data="tableData" style="width: 100%" max-height="400" size="large" class="table2">
         <el-table-column fixed type="index" width="50"></el-table-column>
+        <el-table-column width="100">
+          <template v-slot>
+            <lazy-component lazy-key="table1">
+              <div>div</div>
+              <template #loading>
+                <span>load...</span>
+              </template>
+            </lazy-component>
+          </template>
+        </el-table-column>
         <el-table-column prop="date" label="Date" width="150"/>
         <el-table-column prop="name" label="Name" width="120"/>
         <el-table-column prop="state" label="State" width="120"/>
@@ -58,6 +68,7 @@
 <script lang="ts" setup>
 import {onMounted, onUpdated, ref} from 'vue'
 import View2 from "./View2.vue";
+import {config, listener} from "../src/index";
 
 const show = ref(false)
 const tableData = ref([
@@ -81,11 +92,14 @@ const tableData = ref([
   }
 ])
 
-Array.from({length: 3}).forEach(() => tableData.value.push(...tableData.value))
+Array.from({length: 6}).forEach(() => tableData.value.push(...tableData.value))
 
 function click() {
   tableData.value = tableData.value.sort(() => Math.random() - .5)
   // show.value = !show.value
+  config.sorted = true
+  config.debounce = false
+  listener(false)
 }
 
 onUpdated(() => console.error('updated'))

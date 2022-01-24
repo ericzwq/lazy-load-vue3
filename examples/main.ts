@@ -5,5 +5,7 @@ import 'element-plus/dist/index.css'
 import LazyLoad from '../src/index'
 import App from './App.vue'
 
-// console.log(config)
-createApp(App).use(ElementPlus).use(LazyLoad, {component: true, onLoad: (el: HTMLElement, lazy: any) => 1}).mount('#app')
+createApp(App).use(ElementPlus).use(LazyLoad, {
+  component: true, onLoad: (el: HTMLElement, lazy: any) => 1, sorted: true, debounce: false,
+  afterListen: (e) => console.log('after', e)
+}).mount('#app')
