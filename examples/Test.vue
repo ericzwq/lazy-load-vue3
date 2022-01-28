@@ -9,11 +9,12 @@
         <el-button>hover me</el-button>
       </el-tooltip>
       <!--    <img style="width: 100px;height: 100px" v-show="show" v-lazy="'https://upfile2.asqql.com/upfile/hdimg/wmtp/wmtp/2015-12/30/9835VicmIhquvD.jpg'"/>-->
+      <div v-show="num > 4">div</div>
       <el-table :data="tableData" style="width: 100%" max-height="400" size="large" class="table2">
         <el-table-column fixed type="index" width="50"></el-table-column>
         <el-table-column width="100">
           <template v-slot>
-            <lazy-component lazy-key="table1">
+            <lazy-component lazy-key="table1" watch-update>
               <div>div</div>
               <template #loading>
                 <span>load...</span>
@@ -60,7 +61,10 @@
           </template>
         </el-table-column>
       </el-table>
-      <img style="width: 100px;height: 100px" v-lazy="{src: 'https://upfile2.asqql.com/upfile/hdimg/wmtp/wmtp/2015-12/30/9835VicmIhquvD.jpg', lazyKey: 'body'}"/>
+      <lazy-component ref="lazyRef" :watch-update="num">
+        <div></div>
+      </lazy-component>
+      <img style="width: 100px;height: 100px" id="img" v-lazy="{src: 'https://upfile2.asqql.com/upfile/hdimg/wmtp/wmtp/2015-12/30/9835VicmIhquvD.jpg', lazyKey: 'body'}"/>
     </div>
   </div>
 </template>
@@ -91,21 +95,27 @@ const tableData = ref([
     img: 'https://v3.cn.vuejs.org/logo.png'
   }
 ])
-
+const num = ref(5)
 Array.from({length: 6}).forEach(() => tableData.value.push(...tableData.value))
 
 function click() {
-  tableData.value = tableData.value.sort(() => Math.random() - .5)
-  // show.value = !show.value
-  config.sorted = true
-  config.debounce = false
-  listener(false)
+  // tableData.value = tableData.value.sort(() => Math.random() - .5)
+  // num.value = 5 + Math.random()
+
+  test()
+  function test() {
+    let el = document.getElementById('img'), t = Date.now()
+    for (let i = 0; i < 100000; i++) {
+      // window.getComputedStyle(el).display
+      el.computedStyleMap().get('display')
+    }
+    console.log(Date.now() - t)
+  }
 }
 
 onUpdated(() => console.error('updated'))
-
 onMounted(() => {
-  // console.log(getCurrentInstance())
+//
 })
 </script>
 

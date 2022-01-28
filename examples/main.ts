@@ -6,6 +6,5 @@ import LazyLoad from '../src/index'
 import App from './App.vue'
 
 createApp(App).use(ElementPlus).use(LazyLoad, {
-  component: true, onLoad: (el: HTMLElement, lazy: any) => 1, sorted: true, debounce: false,
-  afterListen: (e) => console.log('after', e)
+  component: true, onLoad: (el: HTMLElement, lazy: any) => 1, sorted: false, debounce: false, watchUpdate: false, afterListen: (e: Event) => console.log(e)
 }).mount('#app')

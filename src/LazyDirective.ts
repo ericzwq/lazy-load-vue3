@@ -1,11 +1,10 @@
 import {Directive, nextTick} from "vue";
 import {DirectiveBinding} from "@vue/runtime-core";
-import {data, addDirectiveRecords, inViewPort, updateDirectiveEl, directiveConfig, lazyElMap} from "./listen";
-import {DirectiveConfig, ExtHTMLElement} from "./types";
+import {addDirectiveRecords, directiveConfig, inViewPort, lazyElMap, updateDirectiveEl} from "./listen";
+import {DirectiveConfig, ExtHTMLElement, Status, ViewStatus} from "./types";
 
 export default {
   beforeMount(el: ExtHTMLElement, {value}: DirectiveBinding<DirectiveConfig>) {
-    data.directiveTotal++
     let key = 'default'
     if (typeof value === 'string') {
       el.lazy = Object.assign({...directiveConfig}, {src: value})
@@ -19,16 +18,13 @@ export default {
     nextTick().then(() => addDirectiveRecords(el, key))
   },
   updated(el: ExtHTMLElement) {
+    if (!el.lazy?.watchUpdate) return
     setTimeout(() => {
-      if (inViewPort(el)) updateDirectiveEl(el)
+      if (el.getAttribute('status') !== Status.waitingLoad) return // it's necessary
+      if (inViewPort(el) === ViewStatus.in) updateDirectiveEl(el, true)
     })
   },
   beforeUnmount(el: ExtHTMLElement) {
-    for (const [, elSet] of lazyElMap) {
-      if (elSet.delete(el)) {
-        data.directiveTotal--
-        data.directiveCount--
-      }
-    }
+    for (const [, elSet] of lazyElMap) elSet.delete(el)
   }
 } as Directive
