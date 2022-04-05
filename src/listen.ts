@@ -162,7 +162,7 @@ function throttle(cb: (sorted: boolean, handleType: HandleType, targetVmSet: Set
       for (const [, elSet] of lazyElMap) cb(sorted, HandleType.directive, elSet)
     }
     flag = false
-    config.afterListen && config.afterListen(event)
+    config.afterListen && config.afterListen(event, lazyElMap, lazyVmMap)
   }
   return (event?: Event | boolean, sorted?: boolean) => {
     if (event === undefined || event instanceof Object) { // default config

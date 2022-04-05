@@ -1,6 +1,6 @@
 {
   "name": "lazy-load-vue3",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "description": "A lazy loading plugin based on vue3",
   "private": false,
   "main": "lib/lazy-load-vue3.umd.js",

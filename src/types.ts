@@ -1,4 +1,4 @@
-import {ComponentPublicInstance} from "vue";
+import {ComponentPublicInstance} from 'vue'
 
 export interface BaseConfig {
   error: string
@@ -17,7 +17,7 @@ export interface Config extends BaseConfig {
   component: boolean
   sorted: boolean
   debounce: boolean
-  afterListen?: (event?: Event) => void
+  afterListen?: (event: Event | undefined, lazyElMap: Map<string, Set<ExtHTMLElement>>, lazyVmMap: Map<string, Set<ExtComponentPublicInstance>>) => void
 }
 
 export type LazyOptions = Partial<Config>

@@ -53,7 +53,7 @@ App.vue:
 | onError                                    | Hook for image loading failure, the type DirectiveConfig is this element's config                                                                                                                                                                                                                                                                                                                                                          | -         | function(el: HTMLElement, config: DirectiveConfig): void |
 | onLoad                                     | Hook for image loading complete                                                                                                                                                                                                                                                                                                                                                                                                            | -         | function(el: HTMLElement, config: DirectiveConfig): void |
 | lazyKey                                    | When there are multiple scrolling elements (such as two tables on one page), in order to improve the update efficiency, they can be marked with different keys. Of course you can ignore him. But if it is enabled, please **strictly** distinguish different keys, otherwise the update may fail. **Remember, this is a dangerous operation if you don't know how to useit.** If you only have one form, then you can just ignore it.     | 'default' | string                                                   |
-| <span id="watchUpdate">*watchUpdate</span> | Sometimes the list may hide some elements. When these elements are displayed, the update hook will be triggered. If watchUpdate is true, the lazy load monitoring will be performed after the update. However, due to the characteristics of vue update, if a row of data is updated, Then the rows of the entire table will enter the update hook, which may cause a lot of unnecessary waste, so it is not necessary to set it to false. | true      | boolean                                                  |
+| <span id="watchUpdate">watchUpdate</span> | Sometimes the list may hide some elements. When these elements are displayed, the update hook will be triggered. If watchUpdate is true, the lazy load monitoring will be performed after the update. However, due to the characteristics of vue update, if a row of data is updated, Then the rows of the entire table will enter the update hook, which may cause a lot of unnecessary waste, so it is not necessary to set it to false. | true      | boolean                                                  |
 
 </div>
 
@@ -65,7 +65,7 @@ App.vue:
 |:--------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------|:-----------------------------|
 | **<span style="color: red;">sorted</span>** | Whether all lazy loaded elements are ordered from top to bottom. <a href="#better">Detail</a>                                                                                                                                                                                           | true    | boolean                      |
 | debounce                                    | Whether it is necessary to actively trigger another monitoring within a certain period of time after each scrolling (config.timeout + 50) (some special cases may cause individual elements in the view to fail to trigger the update, as a backup solution, generally not used arrive) | false   | boolean                      |
-| afterListen                                 | Hook that fires every time the listener completes                                                                                                                                                                                                                                       | -       | function(event: Event): void |
+| *afterListen                                 | Hook that fires every time the listener completes                                                                                                                                                                                                                                       | -       | function(event: Event, lazyElMap: Map<string, Set>, lazyVmMap: Map<string, Set>): void |
 | component                                   | Whether to register the lazy component, If on, **lazy-components** can be used                                                                                                                                                                                                          | false   | boolean                      |
 | preLoad                                     | The range of the preload distance when scrolling, calculated by multiplying the current scroll distance by this value                                                                                                                                                                   | 0.3     | number                       |
 | timeout                                     | Throttling interval(unit:milliseconds)                                                                                                                                                                                                                                                  | 200     | number                       |
@@ -76,7 +76,7 @@ App.vue:
 | errorClassList                              | Same as command and ditto                                                                                                                                                                                                                                                               | []      | string[]                     |
 | onError                                     | Same as command and ditto                                                                                                                                                                                                                                                               | -       | function                     |
 | onLoad                                      | Same as command and ditto                                                                                                                                                                                                                                                               | -       | function                     |
-| *watchUpdate                                | Same as command and ditto                                                                                                                                                                                                                                                               | true    | boolean                      |
+| watchUpdate                                | Same as command and ditto                                                                                                                                                                                                                                                               | true    | boolean                      |
 
 </div>
 
@@ -160,7 +160,7 @@ The components have strong scalability, and you can define advanced functions yo
 | key           | description                                                                                            | default   | type    |
 |:--------------|:-------------------------------------------------------------------------------------------------------|:----------|:--------|
 | lazy-key      | Same as command, **and the priority is higher than the <a href="#instation">Installation Options</a>** | 'default' | string  |
-| *watch-update | Same as command and ditto                                                                              | true      | boolean |
+| watch-update | Same as command and ditto                                                                              | true      | boolean |
 
 </div>
 
@@ -198,9 +198,13 @@ elements are registered in order, please set sorted to false, sorted defaults to
 As for listener, you can just call such as listener(). You can pass a boolean value to the listener to specify whether your manual listener is checked in an ordered manner. This parameter will not
 change the sorted order of the original config.
 
+## 1.2.8 Changelog
+
+1. `afterListen` hook change parameters.
+
 ## 1.2.7 Changelog
 
-1. Add watchUpdate option.
+1. Add `watchUpdate` option.
 2. Monitoring logic optimization.
 3. Fix some bugs
 
@@ -209,7 +213,7 @@ change the sorted order of the original config.
 1. Parameter default value judgment modification.
 2. Add sorted way check.
 3. Debounce from default on to configuration.
-4. Add afterListen hook.
+4. Add `afterListen` hook.
 
 ### If you have any questions, please add an issue on. Life is better with you
 
