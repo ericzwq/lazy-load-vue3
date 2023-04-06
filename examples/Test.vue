@@ -47,7 +47,7 @@
           </template>
         </el-table-column>
       </el-table>
-      <div style="height: 100px;background: red" @click="click">1</div>
+      <div style="height: 100px;background: red" @click="click">test</div>
       <div style="height: 700px"></div>
       <el-table :data="tableData" style="width: 100%" max-height="400" size="large">
         <el-table-column fixed prop="date" label="Date" width="150"/>
@@ -62,7 +62,7 @@
         </el-table-column>
       </el-table>
       <lazy-component ref="lazyRef" :watch-update="num">
-        <div></div>
+        <div class="1">2</div>
       </lazy-component>
       <img style="width: 100px;height: 100px" id="img" v-lazy="{src: 'https://upfile2.asqql.com/upfile/hdimg/wmtp/wmtp/2015-12/30/9835VicmIhquvD.jpg', lazyKey: 'body'}"/>
     </div>
@@ -83,7 +83,7 @@ const tableData = ref([
     city: 'Los Angeles',
     address: 'No. 189, Grove St, Los Angeles',
     zip: 'CA 90036',
-    img: 'https://v3.cn.vuejs.org/logo.png'
+    img: 'https://pic1.zhimg.com/v2-a2b83e07b78e361ae6bc6f4e109e97b9_720w.jpg?source=172ae18b'
   },
   {
     date: '2016-05-02',
@@ -92,25 +92,15 @@ const tableData = ref([
     city: 'Los Angeles',
     address: 'No. 189, Grove St, Los Angeles',
     zip: 'CA 90036',
-    img: 'https://v3.cn.vuejs.org/logo.png'
+    img: 'https://pic1.zhimg.com/v2-a2b83e07b78e361ae6bc6f4e109e97b9_720w.jpg?source=172ae18b'
   }
 ])
 const num = ref(5)
 Array.from({length: 6}).forEach(() => tableData.value.push(...tableData.value))
 
 function click() {
-  // tableData.value = tableData.value.sort(() => Math.random() - .5)
-  // num.value = 5 + Math.random()
-
-  test()
-  function test() {
-    let el = document.getElementById('img'), t = Date.now()
-    for (let i = 0; i < 100000; i++) {
-      // window.getComputedStyle(el).display
-      el.computedStyleMap().get('display')
-    }
-    console.log(Date.now() - t)
-  }
+  tableData.value = tableData.value.sort(() => Math.random() - .5)
+  num.value = 5 + Math.random()
 }
 
 onUpdated(() => console.error('updated'))

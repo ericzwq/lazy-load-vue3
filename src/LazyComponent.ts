@@ -1,5 +1,5 @@
 import {defineComponent, getCurrentInstance, h, nextTick, onBeforeUnmount, onUpdated, ref} from "vue";
-import {addComponentRecords, config, inViewPort, lazyVmMap, updateComponentVm} from "./listen";
+import {addComponentRecords, config, inViewPort, lazyKeyVmMap, updateComponentVm} from "./listen";
 import {ExtComponentPublicInstance, ViewStatus} from "./types";
 
 export default defineComponent({
@@ -21,7 +21,7 @@ export default defineComponent({
         if (inViewPort(vm?.$el) === ViewStatus.in) updateComponentVm(vm, true)
       })
     })
-    onBeforeUnmount(() => lazyVmMap.forEach(vmSet => vmSet.delete(getCurrentInstance()?.proxy as ExtComponentPublicInstance)))
+    onBeforeUnmount(() => lazyKeyVmMap.forEach(vmSet => vmSet.delete(getCurrentInstance()?.proxy as ExtComponentPublicInstance)))
     const isLoaded = ref(false)
     return {
       isLoaded

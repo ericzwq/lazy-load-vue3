@@ -1,9 +1,9 @@
 import {BaseConfig, Config, DirectiveConfig, ExtComponentPublicInstance, ExtHTMLElement, Status, ViewStatus, Vm_El} from "./types";
 
 const defaultKey = 'default'
-export const parentElSet = new Set()
-export const lazyVmMap = new Map<string, Set<ExtComponentPublicInstance>>()
-export const lazyElMap = new Map<string, Set<ExtHTMLElement>>()
+export const elLazyKeySetMap = new Map<HTMLElement, Set<string>>()
+export const lazyKeyVmMap = new Map<string, Set<ExtComponentPublicInstance>>()
+export const lazyKeyElMap = new Map<string, Set<ExtHTMLElement>>()
 export const baseConfig: BaseConfig = {
   error: '',
   loading: '',
@@ -60,11 +60,11 @@ function handler<T extends Vm_El>(sorted: boolean, targetSet: Set<T>, checkFn: (
       targetSet.delete(e)
       continue
     }
-    const res = checkFn(getEl(e))
-    if (res === ViewStatus.in) {
+    const viewStatus = checkFn(getEl(e))
+    if (viewStatus === ViewStatus.in) {
       flag = true
       updateFn(e, true, targetSet)
-    } else if (res === ViewStatus.notIn && sorted && flag) break
+    } else if (viewStatus === ViewStatus.notIn && sorted && flag) break
   }
 }
 
@@ -90,7 +90,7 @@ export function updateDirectiveEl(el: ExtHTMLElement, isDelete: boolean, targetE
   if (targetElSet) {
     targetElSet.delete(el)
   } else if (isDelete) {
-    for (const [, elSet] of lazyElMap) {
+    for (const [, elSet] of lazyKeyElMap) {
       if (elSet.delete(el)) break
     }
   }
@@ -101,54 +101,57 @@ export function updateComponentVm(vm: ExtComponentPublicInstance, isDelete: bool
   if (targetVmSet) {
     targetVmSet.delete(vm)
   } else if (isDelete) {
-    for (const [, vmSet] of lazyVmMap) {
+    for (const [, vmSet] of lazyKeyVmMap) {
       if (vmSet.delete(vm)) break
     }
   }
 }
 
 export function addComponentRecords(vm: ExtComponentPublicInstance): void {
-  const lazyVmSet = lazyVmMap.get(vm.$props.lazyKey ?? defaultKey) || new Set()
+  const lazyKey = vm.$props.lazyKey ?? defaultKey
+  const lazyVmSet = lazyKeyVmMap.get(lazyKey) || new Set()
   if (lazyVmSet.has(vm)) return
-  const res = inViewPort(vm.$el)
-  if (res === ViewStatus.in) return updateComponentVm(vm, false)
-  if (res === ViewStatus.noView) return
+  const viewStatus = inViewPort(vm.$el)
+  if (viewStatus === ViewStatus.in) return updateComponentVm(vm, false)
+  if (viewStatus === ViewStatus.noView) return
   lazyVmSet.add(vm)
-  lazyVmMap.set(vm.$props.lazyKey ?? defaultKey, lazyVmSet)
-  let parent = vm.$el.parentElement as HTMLElement
-  while (parent) {
-    if (parentElSet.has(parent)) break
-    parentElSet.add(parent)
-    parent.addEventListener('scroll', listener)
-    parent = parent.parentElement as HTMLElement
-  }
+  lazyKeyVmMap.set(lazyKey, lazyVmSet)
+  addListener(vm.$el.parentElement, lazyKey)
 }
 
-export function addDirectiveRecords(el: ExtHTMLElement, key: string): void {
-  const lazyVmSet = lazyElMap.get(key) || new Set()
+export function addDirectiveRecords(el: ExtHTMLElement, lazyKey: string | undefined): void {
+  lazyKey = lazyKey ?? defaultKey
+  const lazyVmSet = lazyKeyElMap.get(lazyKey) || new Set()
   if (lazyVmSet.has(el)) return
-  const res = inViewPort(el)
-  if (res === ViewStatus.in) return updateDirectiveEl(el, false)
-  if (res === ViewStatus.noView) return
+  const viewStatus = inViewPort(el)
+  if (viewStatus === ViewStatus.in) return updateDirectiveEl(el, false)
+  if (viewStatus === ViewStatus.noView) return
   el.setAttribute('status', Status.waitingLoad)
   lazyVmSet.add(el)
-  lazyElMap.set(key, lazyVmSet)
-  let parent = el.parentElement as HTMLElement
+  lazyKeyElMap.set(lazyKey, lazyVmSet)
+  addListener(el.parentElement, lazyKey)
+}
+
+function addListener(parent: HTMLElement | null, lazyKey: string) {
   while (parent) {
-    if (parentElSet.has(parent)) break
-    parentElSet.add(parent)
-    parent.addEventListener('scroll', listener)
-    parent = parent.parentElement as HTMLElement
+    const lazyKeySet = elLazyKeySetMap.get(parent) || new Set<string>()
+    if (!lazyKeySet.has(lazyKey)) {
+      lazyKeySet.add(lazyKey)
+      elLazyKeySetMap.set(parent, lazyKeySet)
+      parent.addEventListener('scroll', e => listener(e, {lazyKey}))
+    } else break
+    parent = parent.parentElement
   }
 }
 
 function throttle(cb: (sorted: boolean, handleType: HandleType, targetVmSet: Set<Vm_El>, top?: number, right?: number, bottom?: number, left?: number, y?: number, x?: number) => void) {
   let flag = false, lastScrollLeft = 0, lastScrollTop = 0, timer: number
-  const handler = (sorted: boolean, event?: Event) => {
+  const handler = (sorted: boolean, event: Event | undefined, lazyKey: string | undefined) => {
+    console.log({lazyKey, event}, elLazyKeySetMap)
     if (event && ![window, document].includes(event.target as Document)) {
       const target = event.target as HTMLElement
-      const targetVmSets: Set<ExtComponentPublicInstance>[] = findSet(target, lazyVmMap, vm => vm.$el)
-      const targetElSets: Set<ExtHTMLElement>[] = findSet(target, lazyElMap, el => el)
+      const targetVmSets: Set<ExtComponentPublicInstance>[] = findSet(target, lazyKeyVmMap, vm => vm.$el, lazyKey)
+      const targetElSets: Set<ExtHTMLElement>[] = findSet(target, lazyKeyElMap, el => el, lazyKey)
       const {left, right, top, bottom} = target.getBoundingClientRect()
       const {scrollLeft, scrollTop} = target
       const y = Math.abs(scrollTop - lastScrollTop) * config.preLoad
@@ -158,41 +161,42 @@ function throttle(cb: (sorted: boolean, handleType: HandleType, targetVmSet: Set
       lastScrollLeft = scrollLeft
       lastScrollTop = scrollTop
     } else {
-      for (const [, vmSet] of lazyVmMap) cb(sorted, HandleType.component, vmSet)
-      for (const [, elSet] of lazyElMap) cb(sorted, HandleType.directive, elSet)
+      for (const [, vmSet] of lazyKeyVmMap) cb(sorted, HandleType.component, vmSet)
+      for (const [, elSet] of lazyKeyElMap) cb(sorted, HandleType.directive, elSet)
     }
     flag = false
-    config.afterListen && config.afterListen(event, lazyElMap, lazyVmMap)
+    config.afterListen && config.afterListen(event, lazyKeyElMap, lazyKeyVmMap)
   }
-  return (event?: Event | boolean, sorted?: boolean) => {
-    if (event === undefined || event instanceof Object) { // default config
-      sorted = config.sorted
-    } else if (typeof event === 'boolean') { // manual call
-      sorted = event
-      event = undefined
-    }
+  return (event?: Event, {lazyKey, sorted}: { lazyKey?: string, sorted?: boolean } = {}) => {
+    sorted = sorted ?? config.sorted
     if (config.debounce) {
       clearTimeout(timer)
-      timer = setTimeout(() => handler(sorted as boolean, event as Event), config.timeout + 50) // debounce
+      timer = setTimeout(() => handler(sorted as boolean, event, lazyKey), config.timeout + 50) // debounce
     }
     if (flag) return
     flag = true
-    setTimeout(() => handler(sorted as boolean, event as Event), config.timeout) // throttle
+    setTimeout(() => handler(sorted as boolean, event, lazyKey), config.timeout) // throttle
   }
 }
 
-function findSet<T extends Vm_El>(target: HTMLElement, map: Map<string, Set<T>>, getEl: (e: T) => HTMLElement): Set<T>[] {
-  if (map.size === 1) return map.get(defaultKey) ? [map.get(defaultKey) as Set<T>] : [] // just one key
+function findSet<T extends Vm_El>(target: HTMLElement, map: Map<string, Set<T>>, getEl: (e: T) => HTMLElement, lazyKey: string | undefined): Set<T>[] {
+  const elLazyKeySet = elLazyKeySetMap.get(target) as Set<string>
   const res = []
-  for (const [, set] of map) {
-    if (!set.size) continue
-    for (const e of set) {
-      if (getEl(e).compareDocumentPosition(document) & Node.DOCUMENT_POSITION_DISCONNECTED) set.delete(e)
-      else {
-        if (getEl(e).compareDocumentPosition(target) & Node.DOCUMENT_POSITION_CONTAINS) res.push(set)
-        break
-      }
-    }
+  for (const lazyKey of elLazyKeySet) {
+    if (map.has(lazyKey)) res.push(map.get(lazyKey) as Set<T>)
   }
+  // if (lazyKey !== undefined) return map.has(lazyKey) ? [map.get(lazyKey) as Set<T>] : []
+  // if (map.size === 1) return map.has(defaultKey) ? [map.get(defaultKey) as Set<T>] : [] // just one key
+  // const res = []
+  // for (const [, set] of map) {
+  //   if (!set.size) continue
+  //   for (const e of set) {
+  //     if (getEl(e).compareDocumentPosition(document) & Node.DOCUMENT_POSITION_DISCONNECTED) set.delete(e)
+  //     else {
+  //       if (getEl(e).compareDocumentPosition(target) & Node.DOCUMENT_POSITION_CONTAINS) res.push(set)
+  //       break
+  //     }
+  //   }
+  // }
   return res
 }

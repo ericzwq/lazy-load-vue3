@@ -1,5 +1,5 @@
 <template>
-  <img style="width: 50px;height: 50px" v-lazy="'https://upfile2.asqql.com/upfile/hdimg/wmtp/wmtp/2015-12/30/9835VicmIhquvD.jpg'" v-if="show"/>
+<!--  <img style="width: 50px;height: 50px" v-lazy="'https://upfile2.asqql.com/upfile/hdimg/wmtp/wmtp/2015-12/30/9835VicmIhquvD.jpg'" v-if="show"/>-->
   <button style="padding: 8px;cursor: pointer; background: aqua;border: none;border-radius: 4px" @click="click">{{ show ? 'hidden' : 'show' }}</button>
   <Test/>
 </template>
