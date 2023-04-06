@@ -1,13 +1,13 @@
 import { BaseConfig, Config, DirectiveConfig, ExtComponentPublicInstance, ExtHTMLElement, ViewStatus } from "./types";
-export declare const parentElSet: Set<unknown>;
-export declare const lazyVmMap: Map<string, Set<ExtComponentPublicInstance>>;
-export declare const lazyElMap: Map<string, Set<ExtHTMLElement>>;
+export declare const elLazyKeySetMap: Map<HTMLElement, Set<string>>;
+export declare const lazyKeyVmSetMap: Map<string, Set<ExtComponentPublicInstance>>;
+export declare const lazyKeyElSetMap: Map<string, Set<ExtHTMLElement>>;
 export declare const baseConfig: BaseConfig;
 export declare const config: Config;
 export declare const directiveConfig: DirectiveConfig;
-export declare const listener: (event?: boolean | Event | undefined, sorted?: boolean | undefined) => void;
+export declare const listener: (event?: Event | undefined, sorted?: boolean | undefined) => void;
 export declare function inViewPort(el: HTMLElement): ViewStatus;
 export declare function updateDirectiveEl(el: ExtHTMLElement, isDelete: boolean, targetElSet?: Set<ExtHTMLElement>): void;
 export declare function updateComponentVm(vm: ExtComponentPublicInstance, isDelete: boolean, targetVmSet?: Set<ExtComponentPublicInstance>): void;
 export declare function addComponentRecords(vm: ExtComponentPublicInstance): void;
-export declare function addDirectiveRecords(el: ExtHTMLElement, key: string): void;
+export declare function addDirectiveRecords(el: ExtHTMLElement, lazyKey: string | undefined): void;

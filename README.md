@@ -114,8 +114,7 @@ You can also give lazy-component a lazyKey like a directive, it looks like this:
 ```vue
 
 <template>
-  <!-- If the ancestor elements of the 2 tables are also scrollable, then lazy-key should not be set for these ancestor elements -->
-  <div class="container" :lazy-key="undefined">
+  <div class="container">
     <table>
       <tr>
         <td>

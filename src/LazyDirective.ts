@@ -1,6 +1,6 @@
 import {Directive, nextTick} from "vue";
 import {DirectiveBinding} from "@vue/runtime-core";
-import {addDirectiveRecords, directiveConfig, inViewPort, lazyKeyElMap, updateDirectiveEl} from "./listen";
+import {addDirectiveRecords, directiveConfig, inViewPort, lazyKeyElSetMap, updateDirectiveEl} from "./listen";
 import {DirectiveConfig, ExtHTMLElement, Status, ViewStatus} from "./types";
 
 export default {
@@ -25,6 +25,6 @@ export default {
     })
   },
   beforeUnmount(el: ExtHTMLElement) {
-    for (const [, elSet] of lazyKeyElMap) elSet.delete(el)
+    for (const [, elSet] of lazyKeyElSetMap) elSet.delete(el)
   }
 } as Directive

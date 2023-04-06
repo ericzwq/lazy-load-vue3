@@ -15,7 +15,7 @@ export interface Config extends BaseConfig {
     component: boolean;
     sorted: boolean;
     debounce: boolean;
-    afterListen?: (event: Event | undefined, lazyElMap: Map<string, Set<ExtHTMLElement>>, lazyVmMap: Map<string, Set<ExtComponentPublicInstance>>) => void;
+    afterListen?: (event: Event | undefined, lazyKeyElSetMap: Map<string, Set<ExtHTMLElement>>, lazyKeyVmSetMap: Map<string, Set<ExtComponentPublicInstance>>) => void;
 }
 export declare type LazyOptions = Partial<Config>;
 export interface DirectiveConfig extends BaseConfig {
