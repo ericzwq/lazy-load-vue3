@@ -13,6 +13,5 @@ createApp(App).use(ElementPlus).use(LazyLoad, {
   onLoad: (el: HTMLElement, lazy: DirectiveConfig) => console.log(el, lazy),
   sorted: false,
   debounce: false,
-  watchUpdate: false,
   afterListen: (e: Event, lazyKeyElSetMap: Map<string, Set<ExtHTMLElement>>, lazyKeyVmSetMap: Map<string, Set<ExtComponentPublicInstance>>) => console.log(e, lazyKeyElSetMap, lazyKeyVmSetMap)
 }).mount('#app')

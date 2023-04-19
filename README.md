@@ -57,15 +57,18 @@ App.vue:
 
 </div>
 
+## watchUpdate
+In some cases, it can be an important optimization tool, so it is necessary for you to understand it. There may be some lazy loaded elements in the same row in a list that are hidden (only some elements are displayed for the first time). The simplest example is a list in a table row. There are 10 elements in this list, but only 4 elements are displayed by default (the remaining elements are displayed). The display is none. If the rest is not rendered, it is not in line with this situation and can be ignored), click more to display all the content, then the next 6 elements will trigger an update, in these hidden elements It is not necessary to scroll and monitor these elements before displaying, because they are always hidden and never meet the rendering conditions. For elements like this, the plugin will automatically optimize, not add these elements to the element monitor list, but put them in the updated hook. watch it, so if you have lazy loaded elements that are partially hidden like this in your list, you should not set the watchUpdate option to false for those elements, otherwise the update will fail. If your list is not of this type, but simply displayed, then you can directly set it to false to reduce most of the unnecessary listening.
+
 ## <span id="instation">Installation Options<span>
 
 <div style="text-align: left">
 
 | key                                         | description                                                                                                                                                                                                                                                                             | default | type                         |
 |:--------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------|:-----------------------------|
-| **<span style="color: red;">sorted</span>** | Whether all lazy loaded elements are ordered from top to bottom. <a href="#better">Detail</a>                                                                                                                                                                                           | true    | boolean                      |
+| sorted | Whether all lazy loaded elements are ordered from top to bottom. <a href="#better">Detail</a>                                                                                                                                                                                           | true    | boolean                      |
 | debounce                                    | Whether it is necessary to actively trigger another monitoring within a certain period of time after each scrolling (config.timeout + 50) (some special cases may cause individual elements in the view to fail to trigger the update, as a backup solution, generally not used arrive) | false   | boolean                      |
-| *afterListen                                 | Hook that fires every time the listener completes                                                                                                                                                                                                                                       | -       | function(event: Event, lazyElMap: Map<string, Set>, lazyVmMap: Map<string, Set>): void |
+| afterListen                                 | Hook that fires every time the listener completes                                                                                                                                                                                                                                       | -       | function(event: Event, lazyKeyElSetMap: Map<string, Set<ExtHTMLElement>>, lazyKeyVmSetMap: Map<string, Set<ExtComponentPublicInstance>>): void |
 | component                                   | Whether to register the lazy component, If on, **lazy-components** can be used                                                                                                                                                                                                          | false   | boolean                      |
 | preLoad                                     | The range of the preload distance when scrolling, calculated by multiplying the current scroll distance by this value                                                                                                                                                                   | 0.3     | number                       |
 | timeout                                     | Throttling interval(unit:milliseconds)                                                                                                                                                                                                                                                  | 200     | number                       |
@@ -76,12 +79,8 @@ App.vue:
 | errorClassList                              | Same as command and ditto                                                                                                                                                                                                                                                               | []      | string[]                     |
 | onError                                     | Same as command and ditto                                                                                                                                                                                                                                                               | -       | function                     |
 | onLoad                                      | Same as command and ditto                                                                                                                                                                                                                                                               | -       | function                     |
-| watchUpdate                                | Same as command and ditto                                                                                                                                                                                                                                                               | true    | boolean                      |
 
 </div>
-
-## watchUpdate
-In some cases, it can be an important optimization tool, so it is necessary for you to understand it. There may be some lazy loaded elements in the same row in a list that are hidden (only some elements are displayed for the first time). The simplest example is a list in a table row. There are 10 elements in this list, but only 4 elements are displayed by default (the remaining elements are displayed). The display is none. If the rest is not rendered, it is not in line with this situation and can be ignored), click more to display all the content, then the next 6 elements will trigger an update, in these hidden elements It is not necessary to scroll and monitor these elements before displaying, because they are always hidden and never meet the rendering conditions. For elements like this, the plugin will automatically optimize, not add these elements to the element monitor list, but put them in the updated hook. watch it, so if you have lazy loaded elements that are partially hidden like this in your list, you should not set the watchUpdate option to false for those elements, otherwise the update will fail. If your list is not of this type, but simply displayed, then you can directly set it to false to reduce most of the unnecessary listening.
 
 
 ### As for lazy-component, it looks like this:
@@ -159,7 +158,6 @@ The components have strong scalability, and you can define advanced functions yo
 | key           | description                                                                                            | default   | type    |
 |:--------------|:-------------------------------------------------------------------------------------------------------|:----------|:--------|
 | lazy-key      | Same as command, **and the priority is higher than the <a href="#instation">Installation Options</a>** | 'default' | string  |
-| watch-update | Same as command and ditto                                                                              | true      | boolean |
 
 </div>
 
@@ -196,6 +194,14 @@ elements are registered in order, please set sorted to false, sorted defaults to
 
 As for listener, you can just call such as listener(). You can pass a boolean value to the listener to specify whether your manual listener is checked in an ordered manner. This parameter will not
 change the sorted order of the original config.
+
+## 1.3.0 Changelog
+
+1. Remove the watchUpdate of the component.
+
+## 1.2.9 Changelog
+
+1. The lazy-key performance optimization.
 
 ## 1.2.8 Changelog
 

@@ -1,4 +1,4 @@
-import {BaseConfig, Config, DirectiveConfig, ExtComponentPublicInstance, ExtHTMLElement, Status, ViewStatus, Vm_El} from "./types";
+import {BaseConfig, Config, DirectiveConfig, ExtComponentPublicInstance, ExtHTMLElement, ViewStatus, Vm_El} from "./types";
 
 const defaultKey = 'default'
 export const elLazyKeySetMap = new Map<HTMLElement, Set<string>>()
@@ -11,8 +11,7 @@ export const baseConfig: BaseConfig = {
   loadingClassList: [],
   loadedClassList: [],
   onError: undefined,
-  onLoad: undefined,
-  watchUpdate: true
+  onLoad: undefined
 }
 export const config: Config = Object.assign({
   timeout: 200,
@@ -24,7 +23,8 @@ export const config: Config = Object.assign({
 }, baseConfig)
 export const directiveConfig: DirectiveConfig = Object.assign({
   src: '',
-  lazyKey: defaultKey
+  lazyKey: defaultKey,
+  watchUpdate: true
 }, baseConfig)
 
 const enum HandleType {
@@ -53,7 +53,7 @@ function inParentView(el: HTMLElement, pTop: number, pRight: number, pBottom: nu
   return top <= pBottom + y && bottom >= pTop - y && left <= pRight + x && right >= pLeft - x ? ViewStatus.in : (left !== 0 || top !== 0) ? ViewStatus.notIn : ViewStatus.noView
 }
 
-function handler<T extends Vm_El>(sorted: boolean, targetSet: Set<T>, checkFn: (el: HTMLElement) => ViewStatus, getEl: (e: T) => HTMLElement, updateFn: (e: T, isDelete: boolean, targetSet?: Set<T>) => void): void {
+function handler<T extends Vm_El>(sorted: boolean, targetSet: Set<T>, checkFn: (el: HTMLElement) => ViewStatus, getEl: (e: T) => HTMLElement, updateFn: (e: T, targetSet: Set<T>) => void): void {
   let flag = false
   for (const e of targetSet) {
     if (getEl(e).compareDocumentPosition(document) & Node.DOCUMENT_POSITION_DISCONNECTED) { // unmount
@@ -63,70 +63,56 @@ function handler<T extends Vm_El>(sorted: boolean, targetSet: Set<T>, checkFn: (
     const viewStatus = checkFn(getEl(e))
     if (viewStatus === ViewStatus.in) {
       flag = true
-      updateFn(e, true, targetSet)
+      updateFn(e, targetSet)
     } else if (viewStatus === ViewStatus.notIn && sorted && flag) break
   }
 }
 
-export function updateDirectiveEl(el: ExtHTMLElement, isDelete: boolean, targetElSet?: Set<ExtHTMLElement>): void {
+export function updateDirectiveEl(el: ExtHTMLElement, targetElSet?: Set<ExtHTMLElement>): void {
   const {src, loadingClassList, errorClassList, error, loadedClassList, onError, onLoad} = el.lazy as DirectiveConfig
-  el.setAttribute('status', Status.loading)
   el.setAttribute('src', src)
   el.addEventListener('error', () => {
-    el.setAttribute('status', Status.error)
-    el.classList.add(...errorClassList)
     el.classList.remove(...loadingClassList)
+    el.classList.remove(...loadedClassList)
+    el.classList.add(...errorClassList)
     if (error) el.setAttribute('src', error)
     onError?.(el, el.lazy as DirectiveConfig)
-    el.lazy = undefined
-  })
+  }, {once: true})
+
   el.addEventListener('load', () => {
-    el.setAttribute('status', Status.loaded)
-    el.classList.add(...loadedClassList)
     el.classList.remove(...loadingClassList)
+    el.classList.remove(...errorClassList)
+    el.classList.add(...loadedClassList)
     onLoad?.(el, el.lazy as DirectiveConfig)
-    el.lazy = undefined
-  })
-  if (targetElSet) {
-    targetElSet.delete(el)
-  } else if (isDelete) {
-    for (const [, elSet] of lazyKeyElSetMap) {
-      if (elSet.delete(el)) break
-    }
-  }
+  }, {once: true})
+
+  targetElSet?.delete(el)
 }
 
-export function updateComponentVm(vm: ExtComponentPublicInstance, isDelete: boolean, targetVmSet?: Set<ExtComponentPublicInstance>): void {
+export function updateComponentVm(vm: ExtComponentPublicInstance, targetVmSet?: Set<ExtComponentPublicInstance>): void {
   vm.isLoaded = true
-  if (targetVmSet) {
-    targetVmSet.delete(vm)
-  } else if (isDelete) {
-    for (const [, vmSet] of lazyKeyVmSetMap) {
-      if (vmSet.delete(vm)) break
-    }
-  }
+  targetVmSet?.delete(vm)
 }
 
 export function addComponentRecords(vm: ExtComponentPublicInstance): void {
+  const viewStatus = inViewPort(vm.$el)
+  if (viewStatus === ViewStatus.in) return updateComponentVm(vm)
+  if (viewStatus === ViewStatus.noView) return
   const lazyKey = vm.$props.lazyKey ?? defaultKey
   const vmSet = lazyKeyVmSetMap.get(lazyKey) || new Set()
   if (vmSet.has(vm)) return
-  const viewStatus = inViewPort(vm.$el)
-  if (viewStatus === ViewStatus.in) return updateComponentVm(vm, false)
-  if (viewStatus === ViewStatus.noView) return
   vmSet.add(vm)
   lazyKeyVmSetMap.set(lazyKey, vmSet)
   addListener(vm.$el.parentElement, lazyKey)
 }
 
 export function addDirectiveRecords(el: ExtHTMLElement, lazyKey: string | undefined): void {
+  const viewStatus = inViewPort(el)
+  if (viewStatus === ViewStatus.in) return updateDirectiveEl(el)
+  if (viewStatus === ViewStatus.noView) return
   lazyKey = lazyKey ?? defaultKey
   const elSet = lazyKeyElSetMap.get(lazyKey) || new Set()
   if (elSet.has(el)) return
-  const viewStatus = inViewPort(el)
-  if (viewStatus === ViewStatus.in) return updateDirectiveEl(el, false)
-  if (viewStatus === ViewStatus.noView) return
-  el.setAttribute('status', Status.waitingLoad)
   elSet.add(el)
   lazyKeyElSetMap.set(lazyKey, elSet)
   addListener(el.parentElement, lazyKey)

@@ -9,7 +9,6 @@ export interface BaseConfig {
   loadedClassList: Array<string>
   onError?: (el: ExtHTMLElement, lazy: DirectiveConfig) => void
   onLoad?: (el: ExtHTMLElement, lazy: DirectiveConfig) => void
-  watchUpdate: boolean
 }
 
 export interface Config extends BaseConfig {
@@ -26,13 +25,13 @@ export type LazyOptions = Partial<Config>
 export interface DirectiveConfig extends BaseConfig {
   lazyKey: string
   src: string
+  watchUpdate: boolean
 }
 
 export interface ExtComponentPublicInstance extends ComponentPublicInstance {
   isLoaded: boolean
   $props: {
     lazyKey: string
-    watchUpdate: boolean
   }
 }
 
@@ -41,13 +40,6 @@ export interface ExtHTMLElement extends HTMLElement {
 }
 
 export type Vm_El = ExtComponentPublicInstance | ExtHTMLElement
-
-export const enum Status {
-  waitingLoad = 'waitingLoad',
-  loading = 'loading',
-  error = 'error',
-  loaded = 'loaded'
-}
 
 export const enum ViewStatus {
   in,
