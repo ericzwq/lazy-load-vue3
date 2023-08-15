@@ -10,9 +10,7 @@ export interface BaseConfig {
 }
 export interface Config extends BaseConfig {
     timeout: number;
-    preLoad: number;
     component: boolean;
-    sorted: boolean;
     debounce: boolean;
     afterListen?: (event: Event | undefined, lazyKeyElSetMap: Map<string, Set<ExtHTMLElement>>, lazyKeyVmSetMap: Map<string, Set<ExtComponentPublicInstance>>) => void;
 }
@@ -20,7 +18,6 @@ export declare type LazyOptions = Partial<Config>;
 export interface DirectiveConfig extends BaseConfig {
     lazyKey: string;
     src: string;
-    watchUpdate: boolean;
 }
 export interface ExtComponentPublicInstance extends ComponentPublicInstance {
     isLoaded: boolean;
@@ -29,11 +26,20 @@ export interface ExtComponentPublicInstance extends ComponentPublicInstance {
     };
 }
 export interface ExtHTMLElement extends HTMLElement {
-    lazy?: DirectiveConfig;
+    lazy: DirectiveConfig;
+    __isLoaded?: boolean;
 }
 export declare type Vm_El = ExtComponentPublicInstance | ExtHTMLElement;
 export declare const enum ViewStatus {
     in = 0,
     notIn = 1,
-    noView = 2
+    below = 2,
+    higher = 3,
+    horizontalHide = 4,
+    noView = 5
+}
+export interface UpdateInfo<T extends Vm_El> {
+    tempSet: Set<T>;
+    timer: number;
+    sort: boolean;
 }

@@ -1,10 +1,13 @@
 const path = require('path')
 
+const [, entryName] = process.env.npm_lifecycle_event.split(':')
+if (!entryName) throw 'Unknown command:' + process.env.npm_lifecycle_event
+
 module.exports = {
   pages: {
     index: {
-      entry: "examples/main.ts",
-      template: "examples/index.html",
+      entry: "test/" + entryName + "/main.ts",
+      template: "test/index.html",
       filename: "index.html"
     }
   },

@@ -1,11 +1,12 @@
 import {defineComponent, h, nextTick, ref} from "vue";
-import {addComponentRecords} from "./listen";
+import {addComponentRecord} from "./listen";
 import {ExtComponentPublicInstance} from "./types";
 
 export default defineComponent({
   render() {
+    const {isMounted} = this.$
+    nextTick().then(() => addComponentRecord(this as ExtComponentPublicInstance, isMounted))
     if (!this.isLoaded) {
-      nextTick().then(() => addComponentRecords(this as ExtComponentPublicInstance))
       return this.$slots.loading ? h('div', this.$slots.loading()) : h('div')
     } else {
       return this.$slots.default ? h(this.$slots.default) : h('div')

@@ -1,4 +1,4 @@
-import {BaseConfig, Config, DirectiveConfig, ExtComponentPublicInstance, ExtHTMLElement, ViewStatus, Vm_El} from "./types";
+import {BaseConfig, Config, DirectiveConfig, ExtComponentPublicInstance, ExtHTMLElement, UpdateInfo, ViewStatus, Vm_El} from "./types";
 
 const defaultKey = 'default'
 export const elLazyKeySetMap = new Map<HTMLElement, Set<string>>()
@@ -15,16 +15,13 @@ export const baseConfig: BaseConfig = {
 }
 export const config: Config = Object.assign({
   timeout: 200,
-  preLoad: 0.3,
   component: false,
-  sorted: true,
   debounce: false,
   afterListen: undefined
 }, baseConfig)
 export const directiveConfig: DirectiveConfig = Object.assign({
   src: '',
-  lazyKey: defaultKey,
-  watchUpdate: true
+  lazyKey: defaultKey
 }, baseConfig)
 
 const enum HandleType {
@@ -32,60 +29,127 @@ const enum HandleType {
   directive
 }
 
-export const listener = throttle((sorted, handleType, set, top, right, bottom, left, y, x): void => {
+const mainHandler = (handleType: HandleType, set: Set<Vm_El>, sort?: boolean, top?: number, right?: number, bottom?: number, left?: number) => {
+  const {clientWidth, clientHeight} = document.documentElement
   const checkFn = top !== undefined ?
-    (el: HTMLElement) => inParentView(el, top, right as number, bottom as number, left as number, y as number, x as number) :
-    inViewPort
-  handleType === HandleType.component ?
-    handler(sorted, set as Set<ExtComponentPublicInstance>, checkFn, e => e.$el, updateComponentVm) :
-    handler(sorted, set as Set<ExtHTMLElement>, checkFn, e => e, updateDirectiveEl)
-})
+    (el: HTMLElement) => inParentView(el, top, right as number, bottom as number, left as number) :
+    (el: HTMLElement) => inViewPort(el, clientHeight, clientWidth)
+  return handleType === HandleType.component ?
+    handleUpdate(set as Set<ExtComponentPublicInstance>, checkFn, e => e.$el, updateComponentVm, sort) :
+    handleUpdate(set as Set<ExtHTMLElement>, checkFn, e => e, updateDirectiveEl, sort)
+}
+
+export const listener = throttle(mainHandler)
 
 window.addEventListener('scroll', listener)
 
-export function inViewPort(el: HTMLElement): ViewStatus {
+export function inViewPort(el: HTMLElement, clientHeight: number, clientWidth: number): ViewStatus {
   const {left, right, top, bottom} = el.getBoundingClientRect()
-  return top <= window.innerHeight && bottom > 0 && left <= window.innerWidth && right > 0 ? ViewStatus.in : (left !== 0 || top !== 0) ? ViewStatus.notIn : ViewStatus.noView
+  if (top <= clientHeight && bottom > 0 && left <= clientWidth && right > 0) return ViewStatus.in
+  if (top > clientHeight) return ViewStatus.below
+  if (bottom < 0) return ViewStatus.higher
+  if (top <= clientHeight && bottom > 0) return ViewStatus.horizontalHide
+  if (left === 0 && top === 0) return ViewStatus.noView
+  return ViewStatus.notIn
 }
 
-function inParentView(el: HTMLElement, pTop: number, pRight: number, pBottom: number, pLeft: number, y: number, x: number): ViewStatus {
+function inParentView(el: HTMLElement, pTop: number, pRight: number, pBottom: number, pLeft: number): ViewStatus {
   const {left, right, top, bottom} = el.getBoundingClientRect()
-  return top <= pBottom + y && bottom >= pTop - y && left <= pRight + x && right >= pLeft - x ? ViewStatus.in : (left !== 0 || top !== 0) ? ViewStatus.notIn : ViewStatus.noView
+  if (top <= pBottom && bottom >= pTop && left <= pRight && right >= pLeft) return ViewStatus.in
+  if (top > pBottom) return ViewStatus.below
+  if (bottom < pTop) return ViewStatus.higher
+  if (top <= pBottom && bottom >= pTop) return ViewStatus.horizontalHide
+  if (left === 0 && top === 0) return ViewStatus.noView
+  return ViewStatus.notIn
 }
 
-function handler<T extends Vm_El>(sorted: boolean, targetSet: Set<T>, checkFn: (el: HTMLElement) => ViewStatus, getEl: (e: T) => HTMLElement, updateFn: (e: T, targetSet: Set<T>) => void): void {
-  let flag = false
-  for (const e of targetSet) {
-    if (getEl(e).compareDocumentPosition(document) & Node.DOCUMENT_POSITION_DISCONNECTED) { // unmount
-      targetSet.delete(e)
-      continue
+function handleUpdate<T extends Vm_El>(targetSet: Set<T>, checkFn: (el: HTMLElement) => ViewStatus, getEl: (e: T) => HTMLElement, updateFn: (e: T, targetSet: Set<T>) => void, sort?: boolean) {
+  let targets = Array.from(targetSet)
+  if (sort) {
+    targets.sort((a, b) => {
+      const pos = getEl(a).compareDocumentPosition(getEl(b))
+      if (!(pos & Node.DOCUMENT_POSITION_DISCONNECTED)) {
+        return 1 - (pos & Node.DOCUMENT_POSITION_FOLLOWING)
+      }
+      return (getEl(a).compareDocumentPosition(document) & Node.DOCUMENT_POSITION_DISCONNECTED) ? -1 : 1
+    })
+    targetSet.clear()
+    for (const target of targets) targetSet.add(target)
+  } else {
+    let i = 0, mountedTarget
+    while ((mountedTarget = targets[i++]) && (getEl(mountedTarget).compareDocumentPosition(document) & Node.DOCUMENT_POSITION_DISCONNECTED)) void 0;
+    if (!mountedTarget) {
+      targetSet.clear()
+      return new Set()
     }
-    const viewStatus = checkFn(getEl(e))
+    const unMountedTargets = targets.splice(0, i - 1)
+    if (targets.length > 1 && !(getEl(mountedTarget).compareDocumentPosition(getEl(targets[1])) & Node.DOCUMENT_POSITION_FOLLOWING)) { // List rendering may be in reverse order.
+      targets = targets.reverse()
+      targetSet.clear()
+      for (const target of targets) targetSet.add(target)
+    } else {
+      for (const target of unMountedTargets) targetSet.delete(target)
+    }
+  }
+
+  const inViewIndex = binarySearch(targets)
+  if (inViewIndex === -1) return targetSet
+  updateFn(targets[inViewIndex], targetSet)
+  for (let i = inViewIndex - 1; i > -1; i--) {
+    if (checkFn(getEl(targets[i])) === ViewStatus.in) {
+      updateFn(targets[i], targetSet)
+    } else {
+      break
+    }
+  }
+  for (let i = inViewIndex + 1, l = targets.length; i < l; i++) {
+    if (checkFn(getEl(targets[i])) === ViewStatus.in) {
+      updateFn(targets[i], targetSet)
+    } else {
+      break
+    }
+  }
+
+  return targetSet
+
+  function binarySearch(list: T[], l = 0, r = list.length - 1): number {
+    if (l > r) return -1
+    const index = Math.floor((l + r) / 2)
+    const viewStatus = checkFn(getEl(list[index]))
     if (viewStatus === ViewStatus.in) {
-      flag = true
-      updateFn(e, targetSet)
-    } else if (viewStatus === ViewStatus.notIn && sorted && flag) break
+      return index
+    } else if (viewStatus === ViewStatus.below) {
+      return binarySearch(list, l, index - 1)
+    } else if (viewStatus === ViewStatus.higher) {
+      return binarySearch(list, index + 1, r)
+    } else if ([ViewStatus.horizontalHide, ViewStatus.noView].includes(viewStatus)) {
+      return -1
+    } else {
+      const leftSearchedIndex = binarySearch(list, l, index - 1)
+      if (leftSearchedIndex > -1) return leftSearchedIndex
+      return binarySearch(list, index + 1, r)
+    }
   }
 }
 
 export function updateDirectiveEl(el: ExtHTMLElement, targetElSet?: Set<ExtHTMLElement>): void {
-  const {src, loadingClassList, errorClassList, error, loadedClassList, onError, onLoad} = el.lazy as DirectiveConfig
+  const {src, loadingClassList, errorClassList, error, loadedClassList, onError, onLoad} = el.lazy
+  el.__isLoaded = true
   el.setAttribute('src', src)
   el.addEventListener('error', () => {
     el.classList.remove(...loadingClassList)
     el.classList.remove(...loadedClassList)
     el.classList.add(...errorClassList)
     if (error) el.setAttribute('src', error)
-    onError?.(el, el.lazy as DirectiveConfig)
+    onError?.(el, el.lazy)
   }, {once: true})
 
   el.addEventListener('load', () => {
     el.classList.remove(...loadingClassList)
     el.classList.remove(...errorClassList)
     el.classList.add(...loadedClassList)
-    onLoad?.(el, el.lazy as DirectiveConfig)
+    onLoad?.(el, el.lazy)
   }, {once: true})
-
   targetElSet?.delete(el)
 }
 
@@ -94,28 +158,60 @@ export function updateComponentVm(vm: ExtComponentPublicInstance, targetVmSet?: 
   targetVmSet?.delete(vm)
 }
 
-export function addComponentRecords(vm: ExtComponentPublicInstance): void {
-  const viewStatus = inViewPort(vm.$el)
-  if (viewStatus === ViewStatus.in) return updateComponentVm(vm)
-  if (viewStatus === ViewStatus.noView) return
+const lazyKeyComponentUpdateInfoMap = new Map<string, UpdateInfo<ExtComponentPublicInstance>>()
+
+export function addComponentRecord(vm: ExtComponentPublicInstance, isMounted: boolean): void {
   const lazyKey = vm.$props.lazyKey ?? defaultKey
-  const vmSet = lazyKeyVmSetMap.get(lazyKey) || new Set()
-  if (vmSet.has(vm)) return
-  vmSet.add(vm)
-  lazyKeyVmSetMap.set(lazyKey, vmSet)
-  addListener(vm.$el.parentElement, lazyKey)
+  let componentUpdateInfo: UpdateInfo<ExtComponentPublicInstance>
+  if (lazyKeyComponentUpdateInfoMap.has(lazyKey)) {
+    componentUpdateInfo = lazyKeyComponentUpdateInfoMap.get(lazyKey)!
+  } else {
+    componentUpdateInfo = {tempSet: new Set<ExtComponentPublicInstance>(), timer: -1, sort: false}
+    lazyKeyComponentUpdateInfoMap.set(lazyKey, componentUpdateInfo)
+  }
+  const vmSet = lazyKeyVmSetMap.get(lazyKey) || new Set<ExtComponentPublicInstance>()
+  vmSet.delete(vm)
+  !vm.isLoaded && componentUpdateInfo.tempSet.add(vm)
+  clearTimeout(componentUpdateInfo.timer)
+  isMounted && (componentUpdateInfo.sort = true)
+  componentUpdateInfo.timer = setTimeout(() => {
+    const targetSet = mainHandler(HandleType.component, componentUpdateInfo.tempSet, componentUpdateInfo.sort)
+    for (const target of targetSet) {
+      vmSet.add(target as ExtComponentPublicInstance)
+    }
+    componentUpdateInfo.sort = false
+    componentUpdateInfo.tempSet = new Set<ExtComponentPublicInstance>()
+    lazyKeyVmSetMap.set(lazyKey, vmSet)
+  }, 10)
+  !isMounted && addListener(vm.$el.parentElement, lazyKey)
 }
 
-export function addDirectiveRecords(el: ExtHTMLElement, lazyKey: string | undefined): void {
-  const viewStatus = inViewPort(el)
-  if (viewStatus === ViewStatus.in) return updateDirectiveEl(el)
-  if (viewStatus === ViewStatus.noView) return
+const lazyKeyDirectiveUpdateInfoMap = new Map<string, UpdateInfo<ExtHTMLElement>>()
+
+export function addDirectiveRecord(el: ExtHTMLElement, lazyKey: string | undefined, isMounted: boolean): void {
   lazyKey = lazyKey ?? defaultKey
-  const elSet = lazyKeyElSetMap.get(lazyKey) || new Set()
-  if (elSet.has(el)) return
-  elSet.add(el)
-  lazyKeyElSetMap.set(lazyKey, elSet)
-  addListener(el.parentElement, lazyKey)
+  let directiveUpdateInfo: UpdateInfo<ExtHTMLElement>
+  if (lazyKeyDirectiveUpdateInfoMap.has(lazyKey)) {
+    directiveUpdateInfo = lazyKeyDirectiveUpdateInfoMap.get(lazyKey)!
+  } else {
+    directiveUpdateInfo = {tempSet: new Set<ExtHTMLElement>(), timer: -1, sort: false}
+    lazyKeyDirectiveUpdateInfoMap.set(lazyKey, directiveUpdateInfo)
+  }
+  const elSet = lazyKeyElSetMap.get(lazyKey) || new Set<ExtHTMLElement>()
+  elSet.delete(el)
+  !el.__isLoaded && directiveUpdateInfo.tempSet.add(el)
+  isMounted && (directiveUpdateInfo.sort = true)
+  clearTimeout(directiveUpdateInfo.timer)
+  directiveUpdateInfo.timer = setTimeout(() => {
+    const targetSet = mainHandler(HandleType.directive, directiveUpdateInfo.tempSet, directiveUpdateInfo.sort)
+    for (const target of targetSet) {
+      elSet.add(target as ExtHTMLElement)
+    }
+    directiveUpdateInfo.sort = false
+    directiveUpdateInfo.tempSet = new Set<ExtHTMLElement>()
+    lazyKeyElSetMap.set(lazyKey!, elSet)
+  }, 10)
+  !isMounted && addListener(el.parentElement, lazyKey)
 }
 
 function addListener(parent: HTMLElement | null, lazyKey: string) {
@@ -129,37 +225,31 @@ function addListener(parent: HTMLElement | null, lazyKey: string) {
   }
 }
 
-function throttle(cb: (sorted: boolean, handleType: HandleType, targetVmSet: Set<Vm_El>, top?: number, right?: number, bottom?: number, left?: number, y?: number, x?: number) => void) {
-  let flag = false, lastScrollLeft = 0, lastScrollTop = 0, timer: number
-  const handler = (sorted: boolean, event: Event | undefined) => {
+function throttle(fn: typeof mainHandler) {
+  let flag = false, timer: number
+  const handler = (event?: Event, sort?: boolean) => {
     if (event && ![window, document].includes(event.target as Document)) {
       const target = event.target as HTMLElement
       const targetVmSets: Set<ExtComponentPublicInstance>[] = findSet(target, lazyKeyVmSetMap)
       const targetElSets: Set<ExtHTMLElement>[] = findSet(target, lazyKeyElSetMap)
       const {left, right, top, bottom} = target.getBoundingClientRect()
-      const {scrollLeft, scrollTop} = target
-      const y = Math.abs(scrollTop - lastScrollTop) * config.preLoad
-      const x = Math.abs(scrollLeft - lastScrollLeft) * config.preLoad
-      for (const targetVmSet of targetVmSets) cb(sorted, HandleType.component, targetVmSet, top, right, bottom, left, y, x)
-      for (const targetElSet of targetElSets) cb(sorted, HandleType.directive, targetElSet, top, right, bottom, left, y, x)
-      lastScrollLeft = scrollLeft
-      lastScrollTop = scrollTop
+      for (const targetVmSet of targetVmSets) fn(HandleType.component, targetVmSet, sort, top, right, bottom, left)
+      for (const targetElSet of targetElSets) fn(HandleType.directive, targetElSet, sort, top, right, bottom, left)
     } else {
-      for (const [, vmSet] of lazyKeyVmSetMap) cb(sorted, HandleType.component, vmSet)
-      for (const [, elSet] of lazyKeyElSetMap) cb(sorted, HandleType.directive, elSet)
+      for (const [, vmSet] of lazyKeyVmSetMap) fn(HandleType.component, vmSet, sort)
+      for (const [, elSet] of lazyKeyElSetMap) fn(HandleType.directive, elSet, sort)
     }
     flag = false
     config.afterListen && config.afterListen(event, lazyKeyElSetMap, lazyKeyVmSetMap)
   }
-  return (event?: Event, sorted?: boolean) => {
-    sorted = sorted ?? config.sorted
+  return (event?: Event, sort?: boolean) => {
     if (config.debounce) {
       clearTimeout(timer)
-      timer = setTimeout(() => handler(sorted as boolean, event), config.timeout + 50) // debounce
+      timer = setTimeout(() => handler(event, sort), config.timeout + 50) // debounce
     }
     if (flag) return
     flag = true
-    setTimeout(() => handler(sorted as boolean, event), config.timeout) // throttle
+    setTimeout(() => handler(event, sort), config.timeout) // throttle
   }
 }
 

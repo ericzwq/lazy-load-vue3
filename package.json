@@ -1,6 +1,6 @@
 {
   "name": "lazy-load-vue3",
-  "version": "1.3.0",
+  "version": "2.0.1",
   "description": "A lazy loading plugin based on vue3",
   "private": false,
   "main": "lib/lazy-load-vue3.umd.js",
@@ -21,7 +21,8 @@
     "email": "1872757047@qq.com"
   },
   "scripts": {
-    "serve": "vue-cli-service serve",
+    "test:others": "SET NODE_OPTIONS=--openssl-legacy-provider && vue-cli-service serve --mode others",
+    "test:mul-pages": "SET NODE_OPTIONS=--openssl-legacy-provider && vue-cli-service serve --mode mul-pages",
     "build": "npm run clean && npm run build:esm && npm run build:umd && npm run build:umd.min",
     "lib": "vue-cli-service build --target lib --name LazyLoad --dest lib  src/index.ts",
     "dev": "npm run clean && npm run dev:umd",

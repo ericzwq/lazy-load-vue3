@@ -1,5 +1,4 @@
 import {ComponentPublicInstance} from 'vue'
-import {lazyKeyElSetMap} from "@/listen";
 
 export interface BaseConfig {
   error: string
@@ -13,9 +12,7 @@ export interface BaseConfig {
 
 export interface Config extends BaseConfig {
   timeout: number
-  preLoad: number
   component: boolean
-  sorted: boolean
   debounce: boolean
   afterListen?: (event: Event | undefined, lazyKeyElSetMap: Map<string, Set<ExtHTMLElement>>, lazyKeyVmSetMap: Map<string, Set<ExtComponentPublicInstance>>) => void
 }
@@ -25,7 +22,6 @@ export type LazyOptions = Partial<Config>
 export interface DirectiveConfig extends BaseConfig {
   lazyKey: string
   src: string
-  watchUpdate: boolean
 }
 
 export interface ExtComponentPublicInstance extends ComponentPublicInstance {
@@ -36,7 +32,8 @@ export interface ExtComponentPublicInstance extends ComponentPublicInstance {
 }
 
 export interface ExtHTMLElement extends HTMLElement {
-  lazy?: DirectiveConfig
+  lazy: DirectiveConfig
+  __isLoaded?: boolean
 }
 
 export type Vm_El = ExtComponentPublicInstance | ExtHTMLElement
@@ -44,5 +41,15 @@ export type Vm_El = ExtComponentPublicInstance | ExtHTMLElement
 export const enum ViewStatus {
   in,
   notIn,
+  below,
+  higher,
+  horizontalHide,
   noView
 }
+
+export interface UpdateInfo<T extends Vm_El> {
+  tempSet: Set<T>
+  timer: number
+  sort: boolean
+}
+
